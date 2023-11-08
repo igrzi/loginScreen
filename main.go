@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -94,7 +95,38 @@ func main() {
 	})
 
 	http.HandleFunc("/submit", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
+		email := r.FormValue("email")
+		password := r.FormValue("password")
+
+		// Print the data												!!!!
+		fmt.Printf("Email: %s\nPassword: %s\n", email, password)
+
+		// Encrypts the password
+		passwordEncrypted := sha256.New()
+		passwordEncrypted.Write([]byte(password))
+		hashedPassword := passwordEncrypted.Sum(nil)
+
+		// Logs in the server console the hashed password				!!!!
+		fmt.Printf("%x\n", hashedPassword)
+
+		isOnDatabase := consultOnDatabase(email, hashedPassword)
+
+		if !isOnDatabase {
+			// Call saveOnDatabase to store user data
+			// if the user isn't on the database alredy
+			saveOnDatabase(email, hashedPassword)
+
+			// and redirect the user to the login screen
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+		} else {
+			fmt.Println("USER ALREDY ON DATABASE")
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		}
 	})
 
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
