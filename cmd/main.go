@@ -19,6 +19,9 @@ func treatError(err error) {
 	}
 }
 
+// Define you MySQL credentials and what database will be used
+const dsn = "root:password@tcp(localhost:3306)/loginscreenusers"
+
 // Given an email and a hashed password, checks on the database
 // if the user is present, and returns a boolean value
 func consultOnDatabase(email string, hashedPassword []byte) bool {
@@ -26,8 +29,6 @@ func consultOnDatabase(email string, hashedPassword []byte) bool {
 
 	stringedPassword := hex.EncodeToString(hashedPassword)
 
-	// Define you MySQL credentials and what database will be used
-	dsn := "root:password@tcp(localhost:3306)/loginscreenusers"
 	db, err := sql.Open("mysql", dsn)
 
 	treatError(err)
@@ -50,4 +51,22 @@ func consultOnDatabase(email string, hashedPassword []byte) bool {
 
 	// Matching record found, indicating a valid login.
 	return true
+}
+
+// Given an email and hashed password, save then on the database
+func saveOnDatabase(email string, hashedPassword []byte) {
+	stringedPassword := hex.EncodeToString(hashedPassword)
+
+	// Open the database and defer it's closeure.
+	database, err := sql.Open("mysql", dsn)
+	treatError(err)
+	defer database.Close()
+
+	// Create table if it doesn't exist
+	_, err = database.Exec("CREATE TABLE IF NOT EXISTS users(id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255), password VARCHAR(64))")
+	treatError(err)
+
+	// Insert data using prepared statements to prevent SQL Injection.
+	_, err = database.Exec("INSERT INTO users (email, password) VALUES (?, ?)", email, stringedPassword)
+	treatError(err)
 }
