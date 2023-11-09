@@ -11,11 +11,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type userData struct {
-	Email    string
-	Password string
-}
-
 func treatError(err error) {
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -142,12 +137,46 @@ func main() {
 		}
 	})
 
+	// This is the same as the /submit path
 	http.HandleFunc("/submitlogin", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
+		email := r.FormValue("email")
+		password := r.FormValue("password")
+
+		// Encrypts the password
+		passwordEncrypted := sha256.New()
+		passwordEncrypted.Write([]byte(password))
+		hashedPassword := passwordEncrypted.Sum(nil)
+
+		// Call getFromDatabase to check if user has an account
+		isValid := consultOnDatabase(email, hashedPassword)
+
+		if isValid {
+			fmt.Println("Login is valid.")
+			http.Redirect(w, r, "/success", http.StatusSeeOther)
+		} else {
+			fmt.Println("Invalid login.")
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+		}
 	})
 
 	http.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
+		template, err := template.ParseFiles("static/success.html")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
+		w.WriteHeader(http.StatusOK)
+
+		if err := template.Execute(w, nil); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 
 	fmt.Println("Server is running on: 8080")
